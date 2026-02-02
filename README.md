@@ -19,14 +19,15 @@ Lifeblood Engine is a lightweight, custom-built game engine written in **C++17**
 ### 🎨 Modern Rendering Pipeline
 *   **OpenGL 3.3 Core Profile**: Efficient, programmable graphics pipeline.
 *   **3D Model Support**: Integrated `.obj` loader (via `tinyobjloader`) for weapons, props, and level geometry.
+*   **Blender Workflow**: Create maps in Blender, export as `level.obj`, and drop into `assets/`. The engine loads them automatically!
 *   **Lighting**: Blinn-Phong lighting model for realistic specular highlights.
 *   **HUD**: Lightweight text and 2D rendering system.
 
 ### 🛠️ In-Game Map Editor 2.0
-*   **Real-time Building**: Construct levels while playing.
+*   **Real-time Building**: Construct levels while playing using blocks.
 *   **Prop System**: Place 3D models (Trees, Crates, Barrels) directly in the world.
 *   **Ghost Preview**: Visual placement guide for precision mapping.
-*   **Serialization**: Save and load maps to custom formats instantly.
+*   **Serialization**: Save (`F5`) and load (`F6`) your custom block maps instantly.
 
 ### 🌐 Multiplayer Networking
 *   **UDP Architecture**: Low-latency networking custom-built on Winsock.
