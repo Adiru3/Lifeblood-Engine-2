@@ -72,7 +72,7 @@ The engine uses **CMake FetchContent** to automatically manage dependencies. You
 ### Build Instructions
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Lifeblood-Engine.git
+git clone https://github.com/adiru3/Lifeblood-Engine.git
 cd Lifeblood-Engine
 
 # Create build directory
@@ -102,6 +102,7 @@ Ensure the `assets` folder is in the same directory as the executable (the build
 * **USDT (TON):** `UQC5fsX4zON_FgW4I6iVrxVDtsVwrcOmqbjsYA4TrQh3aOvj`
 
 ### 🌍 Support Links
+[![Donate](https://img.shields.io/badge/Donate-adiru3.github.io-FF0000?style=for-the-badge)](https://adiru3.github.io/Donate/)
 [![Donatello](https://img.shields.io/badge/Support-Donatello-orange?style=for-the-badge)](https://donatello.to/Adiru3)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-blue?style=for-the-badge&logo=kofi)](https://ko-fi.com/adiru)
 

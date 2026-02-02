@@ -97,6 +97,7 @@ Shader* g_Shader = nullptr;
 Model* g_ModelAK = nullptr;
 Model* g_ModelTree = nullptr;
 Model* g_ModelCrate = nullptr;
+Model* g_LevelModel = nullptr;
 
 float g_FlashIntensity = 0.0f;
 bool g_TabPressed = false;
@@ -126,11 +127,47 @@ struct TextRenderer {
         glBufferSubData(GL_ARRAY_BUFFER, 0, num_quads * 4 * 3 * sizeof(float), buffer);
         
         uiShader->Use();
-        Mat4 model = Mat4::Identity(); // Identity for UI
-        // Scale down the text
+        Mat4 model = Mat4::Identity(); 
         model.elements[0][0] = 0.02f; model.elements[1][1] = 0.02f; model.elements[2][2] = 1.0f; 
         uiShader->SetMat4("model", model);
         glUniform3f(glGetUniformLocation(uiShader->ID, "color"), 1, 1, 1);
+        
+        glDrawArrays(GL_QUADS, 0, num_quads * 4);
+        glBindVertexArray(0);
+    }
+    
+    void Draw3D(Vec3 pos, float scale, const std::string& text, Shader* shader, const Mat4& view, const Mat4& proj) {
+        static char buffer[99999];
+        int num_quads = stb_easy_font_print(0, 0, (char*)text.c_str(), NULL, buffer, sizeof(buffer));
+        
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, num_quads * 4 * 3 * sizeof(float), buffer);
+        
+        shader->Use();
+        shader->SetMat4("view", view);
+        shader->SetMat4("projection", proj);
+        
+        Mat4 model = Mat4::Identity();
+        model.elements[3][0] = pos.x; model.elements[3][1] = pos.y; model.elements[3][2] = pos.z;
+        
+        // Rotate to stand up (90 deg around X) + Scale
+        // STB is Y-down, so we flip Y scale and rotate
+        float s = scale * 0.1f;
+        // Rotation X 90 degrees manually
+        // 1  0  0
+        // 0  C -S
+        // 0  S  C
+        float c = 0.0f; float s_sin = 1.0f;
+        // Combined Scale * Rotation matrix elements approx:
+        model.elements[0][0] = s;
+        model.elements[1][1] = s * c;  model.elements[1][2] = s * -s_sin;
+        model.elements[2][1] = s * s_sin; model.elements[2][2] = s * c;
+        // Fix orientation (upside down fix)
+        model.elements[1][1] *= -1.0f; 
+        
+        shader->SetMat4("model", model);
+        glUniform3f(glGetUniformLocation(shader->ID, "color"), 0.2f, 1.0f, 0.2f); // Neon Green text
         
         glDrawArrays(GL_QUADS, 0, num_quads * 4);
         glBindVertexArray(0);
@@ -363,12 +400,24 @@ void RenderScene(const Mat4& view, const Mat4& projection) {
 
     // Blocks
     for(const auto& block : g_AimMap) {
+        if (g_LevelModel && block.pos.z < -2) continue; // Hide fallback floor
+
         Mat4 model = Mat4::Identity();
         model.elements[3][0] = block.pos.x; model.elements[3][1] = block.pos.y; model.elements[3][2] = block.pos.z;
         model.elements[0][0] = block.scale.x; model.elements[1][1] = block.scale.y; model.elements[2][2] = block.scale.z;
         g_Shader->SetMat4("model", model);
         glUniform3f(glGetUniformLocation(g_Shader->ID, "color"), block.color.x, block.color.y, block.color.z);
         g_Cube->Draw();
+    }
+    
+    // Draw Professional Map
+    if (g_LevelModel) {
+        Mat4 model = Mat4::Identity();
+        // Scale/Rotate if needed. Often Blender exports need 90 deg rotation or specific scale.
+        // Assuming 1 unit = 1 unit for now.
+        g_Shader->SetMat4("model", model);
+        glUniform3f(glGetUniformLocation(g_Shader->ID, "color"), 1.0f, 1.0f, 1.0f);
+        g_LevelModel->Draw(g_Shader);
     }
     
     // Props
@@ -405,6 +454,10 @@ void RenderScene(const Mat4& view, const Mat4& projection) {
         if (p.type == WEAPON_KALASH && g_ModelAK) g_ModelAK->Draw(g_Shader);
         else g_Sphere->Draw();
     }
+    
+    // Draw 3D Credits in the Level
+    g_TextRenderer.Draw3D(Vec3(0, 100, 100), 2.0f, "Creator: github.com/Adiru3", g_Shader, view, projection);
+    g_TextRenderer.Draw3D(Vec3(0, 100, 80), 2.0f, "Support: adiru3.github.io/Donate/", g_Shader, view, projection);
 }
 
 // ... Main Loop Wrapper ...
@@ -435,6 +488,17 @@ int main() {
     g_ModelAK = new Model("assets/ak47.obj");
     g_ModelTree = new Model("assets/tree.obj");
     g_ModelCrate = new Model("assets/crate.obj");
+
+    // Try to load external Pro Map
+    // User can place 'level.obj' and textures in assets folder.
+    std::ifstream f("assets/level.obj");
+    if(f.good()) {
+        g_LevelModel = new Model("assets/level.obj");
+        std::cout << "External Level Loaded!" << std::endl;
+        g_AimMap.clear(); // Clear default geometry if custom map exists
+        // Add floor collision plane for safety if mesh collision isn't full
+        g_AimMap.push_back({ Vec3(0, 0, -5), Vec3(5000, 5000, 20), Vec3(0,0,0), BLOCK_SOLID }); 
+    }
     
     g_TextRenderer.Init(); // Init text
 
@@ -504,6 +568,8 @@ int main() {
                 if (abs(ndcX) < 0.6f && abs(ndcY + 0.5f) < 0.15f) glfwSetWindowShouldClose(window, true); // Exit
             }
             
+            g_TextRenderer.Draw(10, 650, "GitHub: github.com/adiru3", g_Shader);
+            g_TextRenderer.Draw(10, 675, "Support: adiru3.github.io/Donate/", g_Shader);
             g_TextRenderer.Draw(10, 700, "LIFEBLOOD ENGINE v1.1", g_Shader);
          }
          else if (g_State == STATE_LOBBY) {
@@ -592,6 +658,10 @@ int main() {
              // Text
              g_TextRenderer.Draw(200, 10, "WEAPON: AK-47", g_Shader);
              g_TextRenderer.Draw(10, 10, "HP: " + std::to_string((int)g_Player.health), g_Shader);
+
+             // Credits (Requested)
+             g_TextRenderer.Draw(10, 100, "Creator: github.com/Adiru3", g_Shader);
+             g_TextRenderer.Draw(10, 125, "Support: adiru3.github.io/Donate/", g_Shader);
 
              if(g_State == STATE_BUILDER) {
                  g_TextRenderer.Draw(10, 30, "BUILD MODE", g_Shader);
