@@ -5,6 +5,8 @@
 
 Lifeblood Engine is a lightweight, custom-built game engine written in **C++17** and **OpenGL 3.3**. It is designed specifically for creating fast-paced multiplayer arena shooters with "old-school" movement mechanics (Quake/CS style), featuring air acceleration, bunnyhopping, and sliding.
 
+<img width="1904" height="1020" alt="image" src="https://github.com/user-attachments/assets/60b35bd0-f076-42e1-9be9-4bfe928fbb18" />
+
 ![Engine Status](https://img.shields.io/badge/Status-Active-brightgreen) ![License](https://img.shields.io/badge/License-MIT-blue) ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6)
 
 ## ✨ Key Features
