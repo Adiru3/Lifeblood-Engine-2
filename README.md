@@ -1,78 +1,46 @@
-# Lifeblood Engine 2 🩸
+# 🩸 Lifeblood Engine 2
 
-> **High-Performance C++ Arena Shooter Engine**
-> *Built for speed, precision, and classic FPS movement.*
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Language](https://img.shields.io/badge/language-C%2B%2B17-blue) ![OpenGL](https://img.shields.io/badge/OpenGL-3.3%2B-green)
 
-Lifeblood Engine is a lightweight, custom-built game engine written in **C++17** and **OpenGL 3.3**. It is designed specifically for creating fast-paced multiplayer arena shooters with "old-school" movement mechanics (Quake/CS style), featuring air acceleration, bunnyhopping, and sliding.
-
-<img width="1904" height="1020" alt="image" src="https://github.com/user-attachments/assets/60b35bd0-f076-42e1-9be9-4bfe928fbb18" />
-
-![Engine Status](https://img.shields.io/badge/Status-Active-brightgreen) ![License](https://img.shields.io/badge/License-MIT-blue) ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6)
-
-## ✨ Key Features
-
-### 🚀 Advanced Physics & Movement
-*   **Quake-style Movement**: Full implementation of Air Accelerate, Strafing, and Bunnyhopping.
-*   **Dynamic Mechanics**: Crouch sliding, Jump Pads, and Jump Mines for verticality.
-*   **Precise Collision**: Custom AABB (Axis-Aligned Bounding Box) physics engine.
-
-### 🎨 Modern Rendering Pipeline
-*   **OpenGL 3.3 Core Profile**: Efficient, programmable graphics pipeline.
-*   **3D Model Support**: Integrated `.obj` loader (via `tinyobjloader`) for weapons, props, and level geometry.
-*   **Blender Workflow**: Create maps in Blender, export as `level.obj`, and drop into `assets/`. The engine loads them automatically!
-*   **Lighting**: Blinn-Phong lighting model for realistic specular highlights.
-*   **HUD**: Lightweight text and 2D rendering system.
-
-### 🛠️ In-Game Map Editor 2.0
-*   **Real-time Building**: Construct levels while playing using blocks.
-*   **Prop System**: Place 3D models (Trees, Crates, Barrels) directly in the world.
-*   **Ghost Preview**: Visual placement guide for precision mapping.
-*   **Serialization**: Save (`F5`) and load (`F6`) your custom block maps instantly.
-
-### 🌐 Multiplayer Networking
-*   **UDP Architecture**: Low-latency networking custom-built on Winsock.
-*   **Host/Join System**: Seamlessly host local servers or connect via IP.
-*   **Replication**: Basic player state and movement synchronization.
-
-### 🔫 Gameplay Framework
-*   **Weapon System**: Hitscan (AK-47, Deagle, Sniper) and Projectile support.
-*   **Audio Engine**: 3D spatial sound integration (via `miniaudio`).
-*   **AI Bots**: Basic enemy AI for single-player practice.
+**Lifeblood Engine** is a high-performance, multiplayer FPS engine built from scratch in C++. It focuses on classic **Quake-style movement mechanics** (Bunnyhopping, Air Strafing), raw input precision, and a competitive networking architecture.
 
 ---
 
-## 🎮 Controls
+## 🔥 Key Features
 
-### Gameplay
-| Key | Action |
-| :--- | :--- |
-| **W, A, S, D** | Move / Strafe |
-| **Space** | Jump / Bhop |
-| **Ctrl** | Crouch / Slide |
-| **LMB** | Fire Weapon |
-| **RMB** | Aim / Scope |
-| **1-4** | Switch Weapons |
-| **TAB** | Scoreboard (Planned) |
+### 🏃‍♂️ Advanced Physics & Movement
+*   **Quake-Like Movement**: Fully implemented air acceleration, friction, and bunnyhopping mechanics.
+*   **2000Hz Simulation**: Physics runs at a fixed high-frequency tickrate for maximum consistency on any framerate.
+*   **Configurable Physics**: tweak movement values (Gravity, Speed, Friction) in `assets/physics.cfg` without recompiling.
 
-### Map Editor (Press `F1` to Toggle)
-| Key | Action |
-| :--- | :--- |
-| **LMB** | Place Block/Prop |
-| **RMB** | Remove Object |
-| **T** | Cycle Prop Type (Block -> Tree -> Crate) |
-| **Arrows** | Move Ghost Cursor (if needed) |
-| **F5** | Save Map |
+### ⚔️ Multiplayer & Networking
+*   **UDP Networking**: Custom reliable/unreliable packet system.
+*   **Client-Server Architecture**: Authoritative server logic.
+*   **Anti-Cheat System**: 
+    *   **Integrity Hashing**: Server validates client files (`physics.cfg`, models) upon connection.
+    *   **Mismatch Rejection**: Clients with modified stats or assets are rejected to prevent cheating.
+
+### � Rendering & Modding
+*   **OpenGL 3.3 Core**: Efficient rendering pipeline.
+*   **OBJ Model Loader**: Supports loading custom 3D models for Weapons, Map, and Props.
+*   **Custom Maps**: Drop your Blender map export as `assets/level.obj` to play on custom levels instantly.
+*   **Builder Mode**: In-game tool to place props dynamically.
+
+### 🤖 AI & Gameplay
+*   **Smart Bots**: AI that tracks the player and navigates the map.
+*   **Combat System**: Hitscan weaponry (AK-47), Health system, Respawning.
+*   **3D Spatial Audio**: Implemented using Miniaudio.
 
 ---
 
-## 🏗️ Building & Installation
+## 🛠️ Build Instructions
 
-### Dependencies
-The engine uses **CMake FetchContent** to automatically manage dependencies. You only need:
+### Prerequisites
 *   **CMake** (3.10+)
-*   **Visual Studio** (or any C++17 compiler)
+*   **C++ Compiler** (MSVC, GCC, or Clang)
+*   **OpenGL Drivers**
 
-### Build Instructions
+### Compiling
 ```bash
 # Clone the repository
 git clone https://github.com/adiru3/Lifeblood-Engine.git
@@ -88,25 +56,38 @@ cmake --build . --config Release
 ```
 
 ### Running
-Ensure the `assets` folder is in the same directory as the executable (the build script handles this automatically).
-```bash
-./bin/Release/Lifeblood.exe
+*   **Single Player**: Launch and select "Single Player".
+*   **Host Server**: Run `Lifeblood.exe` -> Single Player (Acts as Listen Server).
+*   **Join Server**: Run `Lifeblood.exe` -> Multiplayer -> Enter IP (Default 127.0.0.1).
+
+---
+
+## 🎮 Modding Guide
+
+### Changing Physics
+Open `assets/physics.cfg` in any text editor:
+```ini
+gravity=800.0
+max_speed=320.0
+air_accelerate=10.0
+jump_power=270.0
 ```
+*Note: Clients must have the same config as the server to connect!*
 
-## 🔗 Connect with me
-[![YouTube](https://img.shields.io/badge/YouTube-@adiruaim-FF0000?style=for-the-badge&logo=youtube)](https://www.youtube.com/@adiruaim)
-[![TikTok](https://img.shields.io/badge/TikTok-@adiruhs-000000?style=for-the-badge&logo=tiktok)](https://www.tiktok.com/@adiruhs)
+### Custom Maps
+1.  Create a model in Blender.
+2.  Export as **Wavefront (.obj)**.
+3.  Rename to `level.obj`.
+4.  Replace the file in `assets/` folder.
 
-### 💰 Legacy Crypto
-* **BTC:** `bc1qflvetccw7vu59mq074hnvf03j02sjjf9t5dphl`
-* **ETH:** `0xf35Afdf42C8bf1C3bF08862f573c2358461e697f`
-* **Solana:** `5r2H3R2wXmA1JimpCypmoWLh8eGmdZA6VWjuit3AuBkq`
-* **USDT (TRC20):** `TNgFjGzbGxztHDcSHx9DEPmQLxj2dWzozC`
-* **USDT (TON):** `UQC5fsX4zON_FgW4I6iVrxVDtsVwrcOmqbjsYA4TrQh3aOvj`
+---
 
-### 🌍 Support Links
+## 🌍 Support & Credits
+
+Engine developed by **Adiru3** and the Open Source Community.
+
 [![Donate](https://img.shields.io/badge/Donate-adiru3.github.io-FF0000?style=for-the-badge)](https://adiru3.github.io/Donate/)
-[![Donatello](https://img.shields.io/badge/Support-Donatello-orange?style=for-the-badge)](https://donatello.to/Adiru3)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-blue?style=for-the-badge&logo=kofi)](https://ko-fi.com/adiru)
+[![GitHub](https://img.shields.io/badge/GitHub-Adiru3-181717?style=for-the-badge&logo=github)](https://github.com/adiru3)
 
-[![Steam](https://img.shields.io/badge/Steam-Trade-blue?style=for-the-badge&logo=steam)](https://steamcommunity.com/tradeoffer/new/?partner=1124211419&token=2utLCl48)
+---
+*Lifeblood Engine v1.1 - 2026*

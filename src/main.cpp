@@ -37,12 +37,40 @@ std::string g_ServerIP = "127.0.0.1";
 int g_Port = 54000;
 
 struct NetPacket {
+    uint32_t gameHash; // Anti-Cheat Hash
     Vec3 pos;
     Vec3 vel;
     Vec3 view;
     bool visible;
 };
 NetPacket g_RemotePlayer; 
+
+// --- Anti-Cheat Hashing ---
+uint32_t ComputeFileHash(const std::string& path) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.good()) return 0;
+    
+    uint32_t hash = 2166136261u; // FNV-1a offset basis
+    char c;
+    while(f.get(c)) {
+        hash ^= (uint8_t)c;
+        hash *= 16777619u; // FNV-1a prime
+    }
+    return hash;
+}
+
+uint32_t g_GameHash = 0;
+
+void InitGameIntegrity() {
+    PhysicsEngine::Init("assets/physics.cfg");
+    
+    g_GameHash = 0;
+    g_GameHash ^= ComputeFileHash("assets/physics.cfg");
+    g_GameHash ^= ComputeFileHash("assets/ak47.obj");
+    // Add other critical files...
+    
+    std::cout << "[Anti-Cheat] Game Integrity Hash: " << std::hex << g_GameHash << std::dec << std::endl;
+}
 
 // --- Settings ---
 struct Settings {
@@ -502,11 +530,16 @@ int main() {
     
     g_TextRenderer.Init(); // Init text
 
+    InitGameIntegrity(); // Calculate hashes & Load Physics
+
     SetupAimMap();
     SpawnBots(5);
     g_Player.position = Vec3(0, -400, 100);
     
     float lastTime = (float)glfwGetTime();
+    float accumulator = 0.0f;
+    const float TICK_RATE = 2000.0f;
+    const float MS_PER_TICK = 1.0f / TICK_RATE;
 
     g_Particles.Init();
     
@@ -516,13 +549,42 @@ int main() {
 
     while (!glfwWindowShouldClose(window)) {
          float currentTime = (float)glfwGetTime();
-         float dt = currentTime - lastTime;
+         float frameTime = currentTime - lastTime;
          lastTime = currentTime;
          
-         // Global Updates
-         g_Particles.Update(dt);
-         weaponOffset = weaponOffset * (1.0f - dt * 10.0f); // Recoil damping
+         if (frameTime > 0.25f) frameTime = 0.25f; // Cap frame time
+         accumulator += frameTime;
 
+         // Max physics steps per frame to prevent freeze (Spiral of Death)
+         int physicsSteps = 0;
+         const int MAX_PHYSICS_STEPS = 100;
+
+         while (accumulator >= MS_PER_TICK && physicsSteps < MAX_PHYSICS_STEPS) {
+             // Fixed Update
+             g_Particles.Update(MS_PER_TICK);
+             weaponOffset = weaponOffset * (1.0f - MS_PER_TICK * 10.0f); // Recoil damping
+
+             if (g_State == STATE_GAME || g_State == STATE_BUILDER) {
+                 UpdateGameplay(MS_PER_TICK);
+                 
+                 // Bobbing logic in fixed step
+                 float speed = g_Player.velocity.Length();
+                 if (g_Player.onGround && speed > 10.0f) {
+                     weaponBob += MS_PER_TICK * 10.0f;
+                     weaponOffset.x = sin(weaponBob) * 0.5f;
+                     weaponOffset.z = cos(weaponBob * 2.0f) * 0.2f;
+                 }
+                 
+                 if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) Shoot(g_Player, currentTime);
+             }
+             
+             accumulator -= MS_PER_TICK;
+             physicsSteps++;
+         }
+         
+         if (physicsSteps >= MAX_PHYSICS_STEPS) accumulator = 0.0f; // Discard lag
+
+         // --- Render / Input (Variable Step) ---
          if (g_State == STATE_MENU) {
              glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
              glClearColor(0.15f, 0.15f, 0.2f, 1.0f);
@@ -612,17 +674,7 @@ int main() {
              if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) g_Player.rightMove = 1; else if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) g_Player.rightMove = -1; else g_Player.rightMove = 0;
              g_Player.wantsToJump = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
              g_Player.isCrouched = (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS);
-             if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) Shoot(g_Player, currentTime);
-
-             // Bobbing
-             float speed = g_Player.velocity.Length();
-             if (g_Player.onGround && speed > 10.0f) {
-                 weaponBob += dt * 10.0f;
-                 weaponOffset.x = sin(weaponBob) * 0.5f;
-                 weaponOffset.z = cos(weaponBob * 2.0f) * 0.2f;
-             }
-
-             UpdateGameplay(dt);
+             // Shooting handled in fixed update
 
              // Render
              glClearColor(0.1f, 0.15f, 0.2f, 1.0f);
@@ -669,6 +721,43 @@ int main() {
                  if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) g_BuilderPropIndex = (g_BuilderPropIndex+1)%3; // quick cycle
              }
              glEnable(GL_DEPTH_TEST);
+         }
+
+
+
+         // --- Network Sync ---
+         if (g_IsConnected) {
+             static float netTimer = 0.0f;
+             netTimer += frameTime; 
+             if (netTimer > 0.033f) { // ~30hz updates
+                 NetPacket p;
+                 p.gameHash = g_GameHash; // Send Hash
+                 p.pos = g_Player.position;
+                 p.vel = g_Player.velocity;
+                 p.view = g_Player.viewAngles;
+                 p.visible = true;
+                 
+                 g_Network.Send(std::string((char*)&p, sizeof(p)), g_ServerIP, g_IsServer ? g_Port+1 : g_Port);
+                 netTimer = 0;
+             }
+             
+             // Receive
+             char buffer[1024];
+             std::string ip; int port;
+             while (g_Network.Receive(buffer, sizeof(buffer), ip, port)) {
+                 if (sizeof(buffer) >= sizeof(NetPacket)) {
+                     NetPacket* pkt = (NetPacket*)buffer;
+                     
+                     // Anti-Cheat Check
+                     if (pkt->gameHash != g_GameHash) {
+                         static int spam = 0;
+                         if(spam++ % 60 == 0) std::cout << "[Anti-Cheat] Rejected packet from " << ip << ": Hash Mismatch!" << std::endl;
+                         continue; // Drop packet
+                     }
+                     
+                     g_RemotePlayer = *pkt;
+                 }
+             }
          }
 
          glfwSwapBuffers(window);

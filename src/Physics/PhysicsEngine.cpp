@@ -2,6 +2,45 @@
 #include "Game/Player.h"
 #include <cmath>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+// Instantiate Statics
+float PhysicsEngine::STOP_SPEED = 100.0f;
+float PhysicsEngine::DUCK_SCALE = 0.25f;
+float PhysicsEngine::GRAVITY = 800.0f;
+float PhysicsEngine::ACCELERATE = 10.0f;
+float PhysicsEngine::AIR_ACCELERATE = 10.0f;
+float PhysicsEngine::FRICTION = 6.0f;
+float PhysicsEngine::MAX_SPEED = 320.0f;
+float PhysicsEngine::JUMP_POWER = 270.0f;
+
+void PhysicsEngine::Init(const std::string& configPath) {
+    std::ifstream file(configPath);
+    if (!file.is_open()) {
+        std::cerr << "Warning: Could not open " << configPath << ", using defaults." << std::endl;
+        return;
+    }
+    
+    std::cout << "Loading Physics Config..." << std::endl;
+    std::string line;
+    while(std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string key;
+        if(std::getline(ss, key, '=')) {
+            float val; ss >> val;
+            if (key == "gravity") GRAVITY = val;
+            else if (key == "stop_speed") STOP_SPEED = val;
+            else if (key == "duck_scale") DUCK_SCALE = val;
+            else if (key == "accelerate") ACCELERATE = val;
+            else if (key == "air_accelerate") AIR_ACCELERATE = val;
+            else if (key == "friction") FRICTION = val;
+            else if (key == "max_speed") MAX_SPEED = val;
+            else if (key == "jump_power") JUMP_POWER = val;
+        }
+    }
+}
 
 void PhysicsEngine::ApplyImpulse(Player* player, const Vec3& impulse) {
     player->velocity = player->velocity + impulse;
@@ -57,9 +96,20 @@ void PhysicsEngine::PMove(Player* player, float dt) {
         AirAccelerate(player, wishDir, wishSpeed, AIR_ACCELERATE, dt);
     }
 
+    // Speed Cap (Hard limit)
+    if (player->velocity.Length() > 2000.0f) {
+        player->velocity = player->velocity.Normalized() * 2000.0f;
+    }
+
     // Apply Gravity
     if (!player->onGround) {
         player->velocity.z -= GRAVITY * dt;
+    }
+
+    // Ceiling Check (Sky Limit)
+    if (player->position.z > 3000.0f) {
+        player->position.z = 3000.0f;
+        if (player->velocity.z > 0) player->velocity.z = 0;
     }
 
     // Integrate Position
