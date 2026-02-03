@@ -90,4 +90,4 @@ Engine developed by **Adiru3** and the Open Source Community.
 [![GitHub](https://img.shields.io/badge/GitHub-Adiru3-181717?style=for-the-badge&logo=github)](https://github.com/adiru3)
 
 ---
-*Lifeblood Engine v1.1 - 2026*
+*Lifeblood Engine v2.1 - 2026*
